@@ -3,6 +3,7 @@
 //
 
 #include "timerC.h"
+#include <stdexcept>
 
 void timerC::setDuration(int milliseconds) {
     if (running)
