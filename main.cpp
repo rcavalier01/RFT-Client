@@ -61,7 +61,7 @@ int main(int argc, char* argv[]) {
     try {
 
         // ***************************************************************
-        // * Initalize your timer, window and the unreliableTransport etc.
+        // * Initialize your timer, window and the unreliableTransport etc.
         // **************************************************************
 
 
@@ -71,7 +71,7 @@ int main(int argc, char* argv[]) {
         // **************************************************************
         bool allSent(false);
         bool allAcked(false);
-        while ((!allSent) && ((!allAcked)) {
+        while ((!allSent) && (!allAcked)) {
 	
 		// Is there space in the window? If so, read some data from the file and send it.
 
@@ -81,7 +81,7 @@ int main(int argc, char* argv[]) {
 
         }
 
-        // clenaup and close the file and network.
+        // cleanup and close the file and network.
 
     } catch (std::exception &e) {
         FATAL<< "Error: " << e.what() << ENDL;

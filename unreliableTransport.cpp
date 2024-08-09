@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <netdb.h>
 #include <arpa/inet.h>
+#include <strings.h>
 #include "unreliableTransport.h"
 #include "logging.h"
 
