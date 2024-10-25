@@ -24,7 +24,7 @@ void timerC::stop() {
 bool timerC::timeout() const {
     if (running) {
         auto currentTime = std::chrono::system_clock::now();
-        auto elapsedTime = std::chrono::duration_cast<std::chrono::seconds>(currentTime - startTime);
+        auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime);
         return elapsedTime >= duration;
     }
     return false;
