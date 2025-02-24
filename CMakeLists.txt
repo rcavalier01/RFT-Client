@@ -14,7 +14,7 @@ set (SOURCE_FILES
         timerC.h
 )
 
-add_executable(rftClient ${SOURCE_FILES})
+add_executable(rft-client ${SOURCE_FILES})
 
 # Find the current user's name
 # Create a new list to hold the full paths

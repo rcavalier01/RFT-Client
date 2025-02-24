@@ -18,8 +18,10 @@ int main(int argc, char* argv[]) {
 
     // Defaults
     uint16_t portNum(12345);
-    std::string hostname("isengard.mines.edu");
-    std::string inputFilename("input.dat");
+    std::string hostname("");
+    std::string inputFilename("");
+    int requiredArgumentCount(0);
+
 
     int opt;
     try {
@@ -30,23 +32,33 @@ int main(int argc, char* argv[]) {
                     break;
                 case 'h':
                     hostname = optarg;
+		    requiredArgumentCount++;
                     break;
                 case 'd':
                     LOG_LEVEL = std::stoi(optarg);
                     break;
                 case 'f':
                     inputFilename = optarg;
+		    requiredArgumentCount++;
                     break;
                 case '?':
                 default:
-                    std::cout << "Usage: " << argv[0] << " [-h hostname] [-p port] [-d debug_level]" << std::endl;
+                    std::cout << "Usage: " << argv[0] << " -f filename -h hostname [-p port] [-d debug_level]" << std::endl;
                     break;
             }
         }
     } catch (std::exception &e) {
+        std::cout << "Usage: " << argv[0] << " -f filename -h hostname [-p port] [-d debug_level]" << std::endl;
         FATAL << "Invalid command line arguments: " << e.what() << ENDL;
-        return(1);
+        return(-1);
     }
+
+    if (requiredArgumentCount != 2) {
+        std::cout << "Usage: " << argv[0] << " -f filename -h hostname [-p port] [-d debug_level]" << std::endl;
+	std::cerr << "hostname and filename are required." << std::endl;
+	return(-1);
+    }
+
 
     TRACE << "Command line arguments parsed." << ENDL;
     TRACE << "\tServername: " << hostname << ENDL;
