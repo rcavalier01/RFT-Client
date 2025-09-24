@@ -10,12 +10,13 @@
 class timerC {
 private:
     bool running;
-    std::chrono::system_clock::time_point startTime;
+    std::chrono::high_resolution_clock::time_point startTime;
     std::chrono::duration<float> duration;
 
 public:
     timerC() : running(false), startTime(), duration(0) {};
-    explicit timerC(int milliseconds) : running(false), startTime(), duration(milliseconds) {};
+   explicit timerC(int milliseconds) : running(false), startTime(),
+        duration(std::chrono::milliseconds(milliseconds)) {};
     void setDuration(int milliseconds);
     void start();
     void stop();

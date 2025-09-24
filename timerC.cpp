@@ -12,7 +12,7 @@ void timerC::setDuration(int milliseconds) {
 }
 
 void timerC::start() {
-    startTime = std::chrono::system_clock::now();
+    startTime = std::chrono::high_resolution_clock::now();
     running = true;
 }
 
@@ -23,7 +23,7 @@ void timerC::stop() {
 
 bool timerC::timeout() const {
     if (running) {
-        auto currentTime = std::chrono::system_clock::now();
+        auto currentTime = std::chrono::high_resolution_clock::now();
         auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime);
         return elapsedTime >= duration;
     }
