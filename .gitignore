@@ -2,7 +2,6 @@
 CMakeFiles/
 cmake_install.cmake
 CMakeCache.txt
-Makefile
 
 # Ignore the binaray
 rft-client
