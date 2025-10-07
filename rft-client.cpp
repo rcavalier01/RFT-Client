@@ -69,14 +69,22 @@ int main(int argc, char* argv[]) {
     // *********************************
     // * Open the input file
     // *********************************
-
+    //open(inputfilename)
+    std::fstream file;
+    file.open(inputFilename, std::ios::in);
+    if(file.is_open()){
+        DEBUG << "File Opened" << ENDL;
+    }else{
+        DEBUG << "Open Failure" << ENDL;
+    }
     try {
 
         // ***************************************************************
         // * Initialize your timer, window and the unreliableTransport etc.
         // **************************************************************
-
-
+        unreliableTransportC(hostname, portNum);
+        timerC(15);
+        std::array<datagramS, 10> sndpkt;
         // ***************************************************************
         // * Send the file one datagram at a time until they have all been
         // * acknowledged
@@ -86,7 +94,7 @@ int main(int argc, char* argv[]) {
         while ((!allSent) && (!allAcked)) {
 	
 		// Is there space in the window? If so, read some data from the file and send it.
-
+            //snpkt[seqNum % 10].seqnum = nextseqnum;
                 // Call udt_recieve() to see if there is an acknowledgment.  If there is, process it.
  
                 // Check to see if the timer has expired.
@@ -94,7 +102,7 @@ int main(int argc, char* argv[]) {
         }
 
         // cleanup and close the file and network.
-
+        file.close();
     } catch (std::exception &e) {
         FATAL<< "Error: " << e.what() << ENDL;
         exit(1);
