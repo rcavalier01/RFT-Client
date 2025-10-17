@@ -85,6 +85,9 @@ int main(int argc, char* argv[]) {
         unreliableTransportC(hostname, portNum);
         timerC(15);
         std::array<datagramS, 10> sndpkt;
+        int startSeq = 1;
+        int nextSeq = 1;
+        int bytesRead = 0;
         // ***************************************************************
         // * Send the file one datagram at a time until they have all been
         // * acknowledged
@@ -94,10 +97,25 @@ int main(int argc, char* argv[]) {
         while ((!allSent) && (!allAcked)) {
 	
 		// Is there space in the window? If so, read some data from the file and send it.
-            //snpkt[seqNum % 10].seqnum = nextseqnum;
+            if(nextSeq < startSeq + WINDOW_SIZE){
+                while(bytesRead < MAX_PAYLOAD_LENGTH){
+                    //seq
+                    sndpkt[nextSeq% 10].seqNum = nextSeq;
+                    //payload len
+                    sndpkt[nextSeq % 10].payloadLength = 0;
+                    //compute checksum
+                    sndpkt[nextSeq % 10].checksum = computeChecksum(sndpkt[nextSeq % 10]);
+                }
+            }
+            //unreliableTransportC.udt_send(sndpkt[nextSeq % 10]);
+            if(startSeq == nextSeq){
+                //timerC.start();
+            }
+            //seqNum++;
                 // Call udt_recieve() to see if there is an acknowledgment.  If there is, process it.
  
                 // Check to see if the timer has expired.
+                    //if expired restart timer and resend all unacked
 
         }
 
