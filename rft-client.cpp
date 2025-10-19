@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <array>
 #include <vector>
+#include <chrono>
 
 #include "timerC.h"
 #include "unreliableTransport.h"
@@ -75,7 +76,7 @@ int main(int argc, char* argv[]) {
     TRACE << "\tOutput file name: " << inputFilename << ENDL;
     TRACE << "\t Timout selected: " << timerDur << ENDL;
     TRACE << "\t Window Size: " << windowSize << ENDL;
-
+    auto start = std::chrono::high_resolution_clock::now();
     // *********************************
     // * Open the input file
     // *********************************
@@ -110,29 +111,25 @@ int main(int argc, char* argv[]) {
             if(nextSeq < startSeq + windowSize){
                 file.read(sndpkt[nextSeq%windowSize].data, MAX_PAYLOAD_LENGTH);
                 bytesRead = file.gcount();
-                if(bytesRead != 0){
-                    //seq
-                    sndpkt[nextSeq% windowSize].seqNum = nextSeq;
-                    //payload len
-                    sndpkt[nextSeq % windowSize].payloadLength = bytesRead;
-                    //compute checksum
-                    sndpkt[nextSeq % windowSize].checksum = computeChecksum(sndpkt[nextSeq % windowSize]);
-                    client.udt_send(sndpkt[nextSeq % windowSize]);
-                    if(startSeq == nextSeq){
-                        timer.start();
-                    }
-                    nextSeq++;
-                }else{
-                    //finished reading file by payload increments
-                    allSent = true;
-                    datagramS endpkt{};
-                    endpkt.seqNum = nextSeq;
-                    endpkt.ackNum = 0;
-                    endpkt.payloadLength = 0;
-                    endpkt.checksum = computeChecksum(endpkt);
-                    client.udt_send(endpkt);
+                //payload len
+                sndpkt[nextSeq % windowSize].payloadLength = bytesRead;
+                //seq
+                sndpkt[nextSeq% windowSize].seqNum = nextSeq;
+                //compute checksum
+                sndpkt[nextSeq % windowSize].checksum = computeChecksum(sndpkt[nextSeq % windowSize]);
+                client.udt_send(sndpkt[nextSeq % windowSize]);
+                DEBUG << "Sent seq " << nextSeq << " (payload " << bytesRead << ")" << ENDL;
+                if(startSeq == nextSeq){
+                    timer.start();
                 }
-                
+                nextSeq++;
+                if(bytesRead == 0){
+                    //finished reading file by payload increments
+                    DEBUG << "SENFING END SIGNAL" << ENDL;
+                    //payload len
+                    allSent = true;
+                    
+                }
             }
             
             // Call udt_recieve() to see if there is an acknowledgment.  If there is, process it.
@@ -141,6 +138,7 @@ int main(int argc, char* argv[]) {
             //received and not corrupt
             if(rcv > 0 && validateChecksum(rcvpkt)){
                 startSeq = rcvpkt.ackNum + 1;
+                DEBUG << "Recevied ACK for seq " << rcvpkt.ackNum << ", sliding to " << startSeq << ENDL;
                 if(startSeq == nextSeq){
                     timer.stop();
                 }else{
@@ -150,13 +148,16 @@ int main(int argc, char* argv[]) {
             // Check to see if the timer has expired.
                 //if expired restart timer and resend all unacked
             if(timer.timeout()){
+                DEBUG << "timeout triggered"<< ENDL;
+                DEBUG << "resending [" << startSeq << ", " << nextSeq-1 << "]" << ENDL;
                 timer.start();
                 for(int i = startSeq; i < nextSeq; i++){
                     client.udt_send(sndpkt[i % windowSize]);
+                    DEBUG << "resending seq " << i << ENDL;
                 }
             }
-            if(startSeq == nextSeq && allSent){
-                allAcked == true;
+            if((startSeq == nextSeq) && allSent){
+                allAcked = true;
             }
         }
 
@@ -166,5 +167,11 @@ int main(int argc, char* argv[]) {
         FATAL<< "Error: " << e.what() << ENDL;
         exit(1);
     }
+    auto end = std::chrono::high_resolution_clock::now();
+    auto transferTime = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    auto size = static_cast<double>(std::filesystem::file_size(inputFilename));
+    auto throughput = size / transferTime.count();
+    std::cout << "total transfer time: " << transferTime.count() << "\n";
+    std::cout << "throughput is: " << throughput << "\n";
     return 0;
 }
