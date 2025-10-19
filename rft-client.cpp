@@ -115,21 +115,39 @@ int main(int argc, char* argv[]) {
                 }else{
                     //finished reading file by payload increments
                     allSent = true;
+                    datagramS endpkt{};
+                    endpkt.seqNum = nextSeq;
+                    endpkt.ackNum = 0;
+                    endpkt.payloadLength = 0;
+                    endpkt.checksum = computeChecksum(endpkt);
+                    client.udt_send(endpkt);
                 }
                 
             }
             
-                // Call udt_recieve() to see if there is an acknowledgment.  If there is, process it.
- 
-                // Check to see if the timer has expired.
-                    //if expired restart timer and resend all unacked
+            // Call udt_recieve() to see if there is an acknowledgment.  If there is, process it.
+            datagramS rcvpkt{};
+            ssize_t rcv = client.udt_receive(rcvpkt);
+            //received and not corrupt
+            if(rcv > 0 && validateChecksum(rcvpkt)){
+                startSeq = rcvpkt.ackNum + 1;
+                if(startSeq == nextSeq){
+                    timer.stop();
+                }else{
+                    timer.start();
+                }
+            }
+            // Check to see if the timer has expired.
+                //if expired restart timer and resend all unacked
             if(timer.timeout()){
                 timer.start();
                 for(int i = startSeq; i < nextSeq; i++){
                     client.udt_send(sndpkt[i % 10]);
                 }
             }
-
+            if(startSeq == nextSeq && allSent){
+                allAcked == true;
+            }
         }
 
         // cleanup and close the file and network.
