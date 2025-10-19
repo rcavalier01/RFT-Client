@@ -7,13 +7,14 @@
 #include <system_error>
 #include <unistd.h>
 #include <array>
+#include <vector>
 
 #include "timerC.h"
 #include "unreliableTransport.h"
 #include "logging.h"
 
 
-#define WINDOW_SIZE 10
+//#define WINDOW_SIZE 10
 int main(int argc, char* argv[]) {
 
     // Defaults
@@ -21,11 +22,12 @@ int main(int argc, char* argv[]) {
     std::string hostname("");
     std::string inputFilename("");
     int requiredArgumentCount(0);
-
+    size_t windowSize = 10;
+    int timerDur = 15;
 
     int opt;
     try {
-        while ((opt = getopt(argc, argv, "f:h:p:d:")) != -1) {
+        while ((opt = getopt(argc, argv, "f:h:p:d:w:t:")) != -1) {
             switch (opt) {
                 case 'p':
                     portNum = std::stoi(optarg);
@@ -41,20 +43,26 @@ int main(int argc, char* argv[]) {
                     inputFilename = optarg;
 		    requiredArgumentCount++;
                     break;
+                case 'w':
+                    windowSize = std::stoi(optarg);
+                    break;
+                case 't':
+                    timerDur = std::stoi(optarg);
+                    break;
                 case '?':
                 default:
-                    std::cout << "Usage: " << argv[0] << " -f filename -h hostname [-p port] [-d debug_level]" << std::endl;
+                    std::cout << "Usage: " << argv[0] << " -f filename -h hostname [-p port] [-d debug_level] [-w window_size] [-t timeout]" << std::endl;
                     break;
             }
         }
     } catch (std::exception &e) {
-        std::cout << "Usage: " << argv[0] << " -f filename -h hostname [-p port] [-d debug_level]" << std::endl;
+        std::cout << "Usage: " << argv[0] << " -f filename -h hostname [-p port] [-d debug_level] [-w window_size] [-t timeout]" << std::endl;
         FATAL << "Invalid command line arguments: " << e.what() << ENDL;
         return(-1);
     }
 
     if (requiredArgumentCount != 2) {
-        std::cout << "Usage: " << argv[0] << " -f filename -h hostname [-p port] [-d debug_level]" << std::endl;
+        std::cout << "Usage: " << argv[0] << " -f filename -h hostname [-p port] [-d debug_level] [-w window_size] [-t timeout]" << std::endl;
 	std::cerr << "hostname and filename are required." << std::endl;
 	return(-1);
     }
@@ -65,6 +73,8 @@ int main(int argc, char* argv[]) {
     TRACE << "\tPort number: " << portNum << ENDL;
     TRACE << "\tDebug Level: " << LOG_LEVEL << ENDL;
     TRACE << "\tOutput file name: " << inputFilename << ENDL;
+    TRACE << "\t Timout selected: " << timerDur << ENDL;
+    TRACE << "\t Window Size: " << windowSize << ENDL;
 
     // *********************************
     // * Open the input file
@@ -83,8 +93,8 @@ int main(int argc, char* argv[]) {
         // * Initialize your timer, window and the unreliableTransport etc.
         // **************************************************************
         unreliableTransportC client(hostname, portNum);
-        timerC timer(15);
-        std::array<datagramS, 10> sndpkt;
+        timerC timer(timerDur);
+        std::vector<datagramS> sndpkt(windowSize);
         int startSeq = 1;
         int nextSeq = 1;
         int bytesRead = 0;
@@ -97,17 +107,17 @@ int main(int argc, char* argv[]) {
         while ((!allSent) && (!allAcked)) {
 	
 		// Is there space in the window? If so, read some data from the file and send it.
-            if(nextSeq < startSeq + WINDOW_SIZE){
-                file.read(sndpkt[nextSeq%10].data, MAX_PAYLOAD_LENGTH);
+            if(nextSeq < startSeq + windowSize){
+                file.read(sndpkt[nextSeq%windowSize].data, MAX_PAYLOAD_LENGTH);
                 bytesRead = file.gcount();
                 if(bytesRead != 0){
                     //seq
-                    sndpkt[nextSeq% 10].seqNum = nextSeq;
+                    sndpkt[nextSeq% windowSize].seqNum = nextSeq;
                     //payload len
-                    sndpkt[nextSeq % 10].payloadLength = bytesRead;
+                    sndpkt[nextSeq % windowSize].payloadLength = bytesRead;
                     //compute checksum
-                    sndpkt[nextSeq % 10].checksum = computeChecksum(sndpkt[nextSeq % 10]);
-                    client.udt_send(sndpkt[nextSeq % 10]);
+                    sndpkt[nextSeq % windowSize].checksum = computeChecksum(sndpkt[nextSeq % windowSize]);
+                    client.udt_send(sndpkt[nextSeq % windowSize]);
                     if(startSeq == nextSeq){
                         timer.start();
                     }
@@ -142,7 +152,7 @@ int main(int argc, char* argv[]) {
             if(timer.timeout()){
                 timer.start();
                 for(int i = startSeq; i < nextSeq; i++){
-                    client.udt_send(sndpkt[i % 10]);
+                    client.udt_send(sndpkt[i % windowSize]);
                 }
             }
             if(startSeq == nextSeq && allSent){
