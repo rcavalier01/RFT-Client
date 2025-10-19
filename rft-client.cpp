@@ -82,8 +82,8 @@ int main(int argc, char* argv[]) {
         // ***************************************************************
         // * Initialize your timer, window and the unreliableTransport etc.
         // **************************************************************
-        unreliableTransportC(hostname, portNum);
-        timerC(15);
+        unreliableTransportC client(hostname, portNum);
+        timerC timer(15);
         std::array<datagramS, 10> sndpkt;
         int startSeq = 1;
         int nextSeq = 1;
@@ -98,24 +98,37 @@ int main(int argc, char* argv[]) {
 	
 		// Is there space in the window? If so, read some data from the file and send it.
             if(nextSeq < startSeq + WINDOW_SIZE){
-                while(bytesRead < MAX_PAYLOAD_LENGTH){
+                file.read(sndpkt[nextSeq%10].data, MAX_PAYLOAD_LENGTH);
+                bytesRead = file.gcount();
+                if(bytesRead != 0){
                     //seq
                     sndpkt[nextSeq% 10].seqNum = nextSeq;
                     //payload len
-                    sndpkt[nextSeq % 10].payloadLength = 0;
+                    sndpkt[nextSeq % 10].payloadLength = bytesRead;
                     //compute checksum
                     sndpkt[nextSeq % 10].checksum = computeChecksum(sndpkt[nextSeq % 10]);
+                    client.udt_send(sndpkt[nextSeq % 10]);
+                    if(startSeq == nextSeq){
+                        timer.start();
+                    }
+                    nextSeq++;
+                }else{
+                    //finished reading file by payload increments
+                    allSent = true;
                 }
+                
             }
-            //unreliableTransportC.udt_send(sndpkt[nextSeq % 10]);
-            if(startSeq == nextSeq){
-                //timerC.start();
-            }
-            //seqNum++;
+            
                 // Call udt_recieve() to see if there is an acknowledgment.  If there is, process it.
  
                 // Check to see if the timer has expired.
                     //if expired restart timer and resend all unacked
+            if(timer.timeout()){
+                timer.start();
+                for(int i = startSeq; i < nextSeq; i++){
+                    client.udt_send(sndpkt[i % 10]);
+                }
+            }
 
         }
 
