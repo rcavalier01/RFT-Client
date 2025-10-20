@@ -1,6 +1,7 @@
 //
 // Created by Phillip Romig on 7/16/24.
 //
+//modified by raachel cavalier on 10/19
 #include <iostream>
 #include <fstream>
 #include <sys/socket.h>
@@ -99,36 +100,35 @@ int main(int argc, char* argv[]) {
         int startSeq = 1;
         int nextSeq = 1;
         int bytesRead = 0;
+        bool zeroRead = false;
         // ***************************************************************
         // * Send the file one datagram at a time until they have all been
         // * acknowledged
         // **************************************************************
         bool allSent(false);
         bool allAcked(false);
-        while ((!allSent) && (!allAcked)) {
-	
+        while ((!allSent) || (!allAcked)) {
+
 		// Is there space in the window? If so, read some data from the file and send it.
-            if(nextSeq < startSeq + windowSize){
+            if((nextSeq < startSeq + windowSize) && !zeroRead){
                 file.read(sndpkt[nextSeq%windowSize].data, MAX_PAYLOAD_LENGTH);
                 bytesRead = file.gcount();
-                //payload len
+                //payload len, seq, dont need ack, checksum
                 sndpkt[nextSeq % windowSize].payloadLength = bytesRead;
-                //seq
                 sndpkt[nextSeq% windowSize].seqNum = nextSeq;
-                //compute checksum
                 sndpkt[nextSeq % windowSize].checksum = computeChecksum(sndpkt[nextSeq % windowSize]);
+                //fsm
                 client.udt_send(sndpkt[nextSeq % windowSize]);
-                DEBUG << "Sent seq " << nextSeq << " (payload " << bytesRead << ")" << ENDL;
                 if(startSeq == nextSeq){
                     timer.start();
                 }
                 nextSeq++;
                 if(bytesRead == 0){
                     //finished reading file by payload increments
-                    DEBUG << "SENFING END SIGNAL" << ENDL;
-                    //payload len
+                    DEBUG << "SENDING END SIGNAL" << ENDL;
                     allSent = true;
-                    
+                    zeroRead = true;
+                    //will signal with a zero payload to close
                 }
             }
             
@@ -138,7 +138,6 @@ int main(int argc, char* argv[]) {
             //received and not corrupt
             if(rcv > 0 && validateChecksum(rcvpkt)){
                 startSeq = rcvpkt.ackNum + 1;
-                DEBUG << "Recevied ACK for seq " << rcvpkt.ackNum << ", sliding to " << startSeq << ENDL;
                 if(startSeq == nextSeq){
                     timer.stop();
                 }else{
@@ -149,15 +148,14 @@ int main(int argc, char* argv[]) {
                 //if expired restart timer and resend all unacked
             if(timer.timeout()){
                 DEBUG << "timeout triggered"<< ENDL;
-                DEBUG << "resending [" << startSeq << ", " << nextSeq-1 << "]" << ENDL;
                 timer.start();
                 for(int i = startSeq; i < nextSeq; i++){
                     client.udt_send(sndpkt[i % windowSize]);
-                    DEBUG << "resending seq " << i << ENDL;
                 }
             }
             if((startSeq == nextSeq) && allSent){
-                allAcked = true;
+                //no unacked packets in window
+               allAcked = true;
             }
         }
 
@@ -171,7 +169,8 @@ int main(int argc, char* argv[]) {
     auto transferTime = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     auto size = static_cast<double>(std::filesystem::file_size(inputFilename));
     auto throughput = size / transferTime.count();
-    std::cout << "total transfer time: " << transferTime.count() << "\n";
-    std::cout << "throughput is: " << throughput << "\n";
+    std::cout << "total transfer time: " << transferTime.count() << " in ms\n";
+    std::cout << "file size was: " << size << " bytes";
+    std::cout << "throughput is: " << throughput << " Bytes/ms\n";
     return 0;
 }
