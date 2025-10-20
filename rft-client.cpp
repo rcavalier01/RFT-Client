@@ -78,6 +78,7 @@ int main(int argc, char* argv[]) {
     TRACE << "\t Timout selected: " << timerDur << ENDL;
     TRACE << "\t Window Size: " << windowSize << ENDL;
     auto start = std::chrono::high_resolution_clock::now();
+    int throughput = 0;
     // *********************************
     // * Open the input file
     // *********************************
@@ -101,6 +102,7 @@ int main(int argc, char* argv[]) {
         int nextSeq = 1;
         int bytesRead = 0;
         bool zeroRead = false;
+        
         // ***************************************************************
         // * Send the file one datagram at a time until they have all been
         // * acknowledged
@@ -119,6 +121,7 @@ int main(int argc, char* argv[]) {
                 sndpkt[nextSeq % windowSize].checksum = computeChecksum(sndpkt[nextSeq % windowSize]);
                 //fsm
                 client.udt_send(sndpkt[nextSeq % windowSize]);
+                throughput += sizeof(datagramS);
                 if(startSeq == nextSeq){
                     timer.start();
                 }
@@ -151,6 +154,7 @@ int main(int argc, char* argv[]) {
                 timer.start();
                 for(int i = startSeq; i < nextSeq; i++){
                     client.udt_send(sndpkt[i % windowSize]);
+                    throughput += sizeof(datagramS);
                 }
             }
             if((startSeq == nextSeq) && allSent){
@@ -168,9 +172,11 @@ int main(int argc, char* argv[]) {
     auto end = std::chrono::high_resolution_clock::now();
     auto transferTime = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     auto size = static_cast<double>(std::filesystem::file_size(inputFilename));
-    auto throughput = size / transferTime.count();
+    auto goodput = size / transferTime.count();
+    auto throughput_val = throughput / transferTime.count();
     std::cout << "total transfer time: " << transferTime.count() << " in ms\n";
-    std::cout << "file size was: " << size << " bytes";
-    std::cout << "throughput is: " << throughput << " Bytes/ms\n";
+    std::cout << "file size was: " << size << " bytes\n";
+    std::cout << "goodput is: " << goodput << " Bytes/ms\n";
+    std::cout << "throughput is: " << throughput_val << " Bytes/ms \n";
     return 0;
 }
